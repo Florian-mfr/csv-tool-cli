@@ -1,0 +1,43 @@
+{
+  "name": "csv-tool-cli",
+  "version": "1.0.0",
+  "description": "Un outil CLI interactif pour manipuler les fichiers CSV (merge, diff, intersect, duplicates, split)",
+  "main": "csv-tool.mjs",
+  "bin": {
+    "csv-tool": "./csv-tool.mjs"
+  },
+  "type": "module",
+  "scripts": {
+    "start": "node csv-tool.mjs",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "csv",
+    "cli",
+    "tool",
+    "merge",
+    "diff",
+    "split",
+    "duplicates",
+    "data"
+  ],
+  "author": "Votre Nom <votre.email@example.com>",
+  "license": "MIT",
+  "dependencies": {
+    "csv-parser": "^3.0.0",
+    "json2csv": "^6.0.0-alpha.2",
+    "inquirer": "^9.3.7",
+    "inquirer-file-tree-selection-prompt": "^2.0.5"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/votre-username/csv-tool-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/votre-username/csv-tool-cli/issues"
+  },
+  "homepage": "https://github.com/votre-username/csv-tool-cli#readme"
+}

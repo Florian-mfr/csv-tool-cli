@@ -25,6 +25,16 @@ This directory contains sample CSV files to test all functionalities of the CSV 
 - **Test split by count**: Split into 5 files (5 records each)
 - **Test split by lines**: Split with max 10 lines per file (3 files total)
 
+### Filter Testing
+- **test_filter.csv** - Sample data with various statuses and scores
+- **Test**: Filter by status = "active" to get only active users
+- **Expected**: 4 active users (Alice, Charlie, Diana, Grace)
+
+### Sort Testing
+- **test_filter.csv** - Same file, various numerical scores
+- **Test**: Sort by score column (ascending, number type)
+- **Expected**: Frank (67) → Charlie (78) → Alice (85) → Diana (88) → Grace (91) → Bob (92) → Eve (95)
+
 ## Usage Examples
 
 1. **Merge**: 
@@ -57,3 +67,19 @@ This directory contains sample CSV files to test all functionalities of the CSV 
    - File: `test/sales_data.csv`
    - Mode: `Number of sub-files` → Enter `5`
    - Output pattern: `sales_part`
+
+6. **Filter**:
+   - Select `filter`
+   - File: `test/test_filter.csv`
+   - Column: `status`
+   - Operator: `equals`
+   - Value: `active`
+   - Output: `active_users.csv`
+
+7. **Sort**:
+   - Select `sort`
+   - File: `test/test_filter.csv`
+   - Column: `score`
+   - Order: `Ascending`
+   - Data type: `Number` (or Auto-detect)
+   - Output: `sorted_by_score.csv`

@@ -1,481 +1,209 @@
 #!/usr/bin/env node
-import fs from "fs";
-import path from "path";
-import csv from "csv-parser";
-import { parse } from "json2csv";
 import inquirer from "inquirer";
-import inquirerFileTreeSelection from "inquirer-file-tree-selection-prompt";
+import path from "path";
 
-inquirer.registerPrompt("file-tree-selection", inquirerFileTreeSelection);
+// Import operations
+import { merge } from "./src/operations/merge.js";
+import { diff } from "./src/operations/diff.js";
+import { intersect } from "./src/operations/intersect.js";
+import { duplicates } from "./src/operations/duplicates.js";
+import { splitCSV } from "./src/operations/split.js";
+import { filter } from "./src/operations/filter.js";
+import { sort } from "./src/operations/sort.js";
 
-function normalize(val) {
-  return (val || "").trim().toLowerCase();
+// Import UI helpers
+import { 
+  selectFile, 
+  selectOperation, 
+  promptForMergeFiles, 
+  promptForOutput, 
+  promptForKey,
+  promptForColumn
+} from "./src/ui/prompts.js";
+
+import { readCSV } from "./src/utils/csv.js";
+
+async function handleMerge() {
+  const fileList = await promptForMergeFiles();
+  const outputPath = await promptForOutput("merged.csv");
+  await merge(fileList, outputPath);
 }
 
-function validateFile(filePath) {
-  try {
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`File not found: ${filePath}`);
-    }
-    
-    const stats = fs.statSync(filePath);
-    if (!stats.isFile()) {
-      throw new Error(`Path is not a file: ${filePath}`);
-    }
-    
-    if (!filePath.toLowerCase().endsWith('.csv')) {
-      console.warn(`⚠️ Warning: File doesn't have .csv extension: ${filePath}`);
-    }
-    
-    return true;
-  } catch (error) {
-    console.error(`❌ File validation error: ${error.message}`);
-    return false;
-  }
-}
-
-function validateKey(rows, key) {
-  if (!rows || rows.length === 0) {
-    console.error("❌ No data to validate key against");
-    return false;
-  }
+async function handleDiffOrIntersect(command) {
+  const file1 = await selectFile("📂 File 1 (source):");
+  const file2 = await selectFile("📂 File 2 (comparison):");
   
-  const firstRow = rows[0];
-  if (!firstRow.hasOwnProperty(key)) {
-    const availableKeys = Object.keys(firstRow);
-    console.error(`❌ Key '${key}' not found in CSV. Available columns: ${availableKeys.join(', ')}`);
-    return false;
-  }
+  const csvData = await readCSV(file1);
+  const key = await promptForKey("🔑 Key to use:", csvData);
+  const outputPath = await promptForOutput(`${command}.csv`);
   
-  return true;
-}
-
-function readCSV(filePath) {
-  return new Promise((resolve, reject) => {
-    if (!validateFile(filePath)) {
-      reject(new Error(`Invalid file: ${filePath}`));
-      return;
-    }
-
-    const rows = [];
-    const stream = fs.createReadStream(filePath, { encoding: "utf8" });
-    
-    stream
-      .pipe(csv())
-      .on("data", (row) => rows.push(row))
-      .on("end", () => {
-        if (rows.length === 0) {
-          console.warn("⚠️ Warning: CSV file is empty or contains no valid data");
-        }
-        resolve(rows);
-      })
-      .on("error", (error) => {
-        console.error(`❌ Error reading CSV file ${filePath}: ${error.message}`);
-        reject(error);
-      });
-      
-    stream.on("error", (error) => {
-      console.error(`❌ Error opening file ${filePath}: ${error.message}`);
-      reject(error);
-    });
-  });
-}
-
-function writeCSV(filePath, data) {
-  try {
-    if (data.length === 0) {
-      console.warn("⚠️ No results to write.");
-      return false;
-    }
-    
-    const dir = path.dirname(filePath);
-    try {
-      fs.accessSync(dir, fs.constants.W_OK);
-    } catch (error) {
-      console.error(`❌ No write permission for directory: ${dir}`);
-      return false;
-    }
-    
-    const fields = Object.keys(data[0]);
-    const csvData = parse(data, { fields });
-    fs.writeFileSync(filePath, csvData);
-    console.log(`✅ File written: ${filePath} (${data.length} row(s))`);
-    return true;
-  } catch (error) {
-    console.error(`❌ Error writing file ${filePath}: ${error.message}`);
-    return false;
-  }
-}
-
-async function selectFile(message = "📁 Select a .csv file:") {
-  const root = process.cwd();
-
-  const { selectedFile } = await inquirer.prompt([
-    {
-      type: "file-tree-selection",
-      name: "selectedFile",
-      message,
-      root,
-      enableGoUpperDirectory: true,
-      hideHidden: true,
-      onlyShowValid: true,
-      transformer: (input) => path.relative(root, input),
-      validate: (entry) => {
-        const fullPath = path.resolve(root, entry);
-        try {
-          const stats = fs.statSync(fullPath);
-          if (stats.isDirectory()) return true;
-          if (stats.isFile() && entry.endsWith(".csv")) return true;
-        } catch (_) {}
-        return false;
-      },
-    },
-  ]);
-
-  return path.resolve(root, selectedFile);
-}
-
-async function merge(files, output) {
-  try {
-    const allRows = [];
-    const allColumns = new Set();
-    const fileHeaders = [];
-    
-    for (const file of files) {
-      const rows = await readCSV(file);
-      if (rows.length > 0) {
-        const headers = Object.keys(rows[0]);
-        fileHeaders.push({ file: path.basename(file), headers });
-        headers.forEach(col => allColumns.add(col));
-        allRows.push(...rows);
-      }
-    }
-    
-    if (fileHeaders.length > 1) {
-      const firstHeaders = fileHeaders[0].headers.sort();
-      let hasMismatch = false;
-      
-      for (let i = 1; i < fileHeaders.length; i++) {
-        const currentHeaders = fileHeaders[i].headers.sort();
-        if (JSON.stringify(firstHeaders) !== JSON.stringify(currentHeaders)) {
-          hasMismatch = true;
-          break;
-        }
-      }
-      
-      if (hasMismatch) {
-        console.warn("⚠️ Warning: Files have different column structures:");
-        fileHeaders.forEach(({file, headers}) => {
-          console.warn(`  ${file}: ${headers.join(', ')}`);
-        });
-        console.warn(`  Merged file will have all columns: ${Array.from(allColumns).sort().join(', ')}`);
-        console.warn(`  Missing values will be empty.`);
-      }
-    }
-    
-    const normalizedRows = allRows.map(row => {
-      const normalizedRow = {};
-      Array.from(allColumns).forEach(col => {
-        normalizedRow[col] = row[col] || '';
-      });
-      return normalizedRow;
-    });
-    
-    return writeCSV(output, normalizedRows);
-  } catch (error) {
-    console.error(`❌ Error in merge operation: ${error.message}`);
-    return false;
-  }
-}
-
-async function diff(file1, file2, key, output) {
-  try {
-    const [rows1, rows2] = await Promise.all([readCSV(file1), readCSV(file2)]);
-    
-    if (!validateKey(rows1, key) || !validateKey(rows2, key)) {
-      return false;
-    }
-    
-    const keySet2 = new Set(rows2.map((row) => normalize(row[key])));
-    const result = rows1.filter((row) => !keySet2.has(normalize(row[key])));
-    return writeCSV(output, result);
-  } catch (error) {
-    console.error(`❌ Error in diff operation: ${error.message}`);
-    return false;
-  }
-}
-
-async function intersect(file1, file2, key, output) {
-  try {
-    const [rows1, rows2] = await Promise.all([readCSV(file1), readCSV(file2)]);
-    
-    if (!validateKey(rows1, key) || !validateKey(rows2, key)) {
-      return false;
-    }
-    
-    const keySet2 = new Set(rows2.map((row) => normalize(row[key])));
-    const result = rows1.filter((row) => keySet2.has(normalize(row[key])));
-    return writeCSV(output, result);
-  } catch (error) {
-    console.error(`❌ Error in intersect operation: ${error.message}`);
-    return false;
-  }
-}
-
-async function duplicates(file, key, output) {
-  try {
-    const rows = await readCSV(file);
-    
-    if (!validateKey(rows, key)) {
-      return false;
-    }
-    
-    const seen = new Map();
-    const dups = [];
-
-    for (const row of rows) {
-      const val = normalize(row[key]);
-      if (seen.has(val)) {
-        dups.push(row);
-      } else {
-        seen.set(val, true);
-      }
-    }
-
-    return writeCSV(output, dups);
-  } catch (error) {
-    console.error(`❌ Error in duplicates operation: ${error.message}`);
-    return false;
-  }
-}
-
-async function splitCSV(inputFile, options) {
-  try {
-    const { mode, value, outputPattern } = options;
-    const rows = await readCSV(inputFile);
-    if (rows.length === 0) {
-      console.warn("⚠️ The CSV file is empty.");
-      return false;
-    }
-  let groups = [];
-
-  if (mode === "fileCount") {
-    const fileCount = parseInt(value, 10);
-    if (fileCount <= 0) {
-      console.warn("⚠️ The number of sub-files must be greater than 0.");
-      return;
-    }
-    const groupSize = Math.ceil(rows.length / fileCount);
-    for (let i = 0; i < fileCount; i++) {
-      groups.push(rows.slice(i * groupSize, (i + 1) * groupSize));
-    }
-  } else if (mode === "maxLines") {
-    const maxLines = parseInt(value, 10);
-    if (maxLines <= 0) {
-      console.warn("⚠️ The maximum number of lines must be greater than 0.");
-      return;
-    }
-    for (let i = 0; i < rows.length; i += maxLines) {
-      groups.push(rows.slice(i, i + maxLines));
-    }
+  if (command === "diff") {
+    await diff(file1, file2, key, outputPath);
   } else {
-    console.warn("⚠️ Unknown split mode.");
-    return;
-  }
-
-    groups.forEach((group, index) => {
-      if (group.length > 0) {
-        const outputPath = path.resolve(
-          process.cwd(),
-          `${outputPattern}_${index + 1}.csv`
-        );
-        writeCSV(outputPath, group);
-      }
-    });
-    console.log(`✅ Successfully generated ${groups.length} file(s).`);
-    return true;
-  } catch (error) {
-    console.error(`❌ Error in split operation: ${error.message}`);
-    return false;
+    await intersect(file1, file2, key, outputPath);
   }
 }
 
-async function main() {
-  const { command } = await inquirer.prompt([
+async function handleDuplicates() {
+  const file = await selectFile("📂 File to analyze:");
+  
+  const csvData = await readCSV(file);
+  const key = await promptForKey("🔑 Key to detect duplicates:", csvData);
+  const outputPath = await promptForOutput("duplicates.csv");
+  await duplicates(file, key, outputPath);
+}
+
+async function handleSplit() {
+  const file = await selectFile("📂 Select the CSV file to split:");
+  
+  const { mode } = await inquirer.prompt([
     {
       type: "list",
-      name: "command",
-      message: "Choose an operation:",
+      name: "mode",
+      message: "Choose the split mode:",
       choices: [
-        {
-          name: "merge       (merge multiple CSV files)",
-          value: "merge",
-        },
-        {
-          name: "diff        (lines of csv1 absent of csv2)",
-          value: "diff",
-        },
-        {
-          name: "intersect   (lines common between csv1 and csv2)",
-          value: "intersect",
-        },
-        {
-          name: "duplicates  (duplicates in a single file)",
-          value: "duplicates",
-        },
-        {
-          name: "split       (split a CSV into multiple files)",
-          value: "split",
-        },
+        { name: "Number of sub-files", value: "fileCount" },
+        { name: "Maximum number of lines per file", value: "maxLines" },
       ],
     },
   ]);
 
-  if (command === "merge") {
-    const fileList = [];
-    let keepGoing = true;
+  const { value } = await inquirer.prompt([
+    {
+      type: "input",
+      name: "value",
+      message:
+        mode === "fileCount"
+          ? "Enter the number of files to generate:"
+          : "Enter the maximum number of lines per file:",
+      validate: (input) =>
+        !isNaN(parseInt(input, 10)) && parseInt(input, 10) > 0
+          ? true
+          : "Enter a valid number greater than 0.",
+    },
+  ]);
 
-    while (keepGoing) {
-      const { method } = await inquirer.prompt([
-        {
-          type: "list",
-          name: "method",
-          message: `📦 Add files to merge (${fileList.length} current):`,
-          choices: [
-            {
-              name: "Select a file via explorer",
-              value: "explorer",
-            },
-            { name: "Enter a path manually", value: "manual" },
-            {
-              name: `Start merge with ${fileList.length} file(s)`,
-              value: "done",
-              disabled:
-                fileList.length === 0 ? "Add at least one file" : false,
-            },
-          ],
-        },
-      ]);
+  const { outputPattern } = await inquirer.prompt([
+    {
+      type: "input",
+      name: "outputPattern",
+      message: "Base name for output files:",
+      default: "split_part",
+    },
+  ]);
 
-      if (method === "explorer") {
-        const file = await selectFile("📁 Select a file to add:");
-        fileList.push(file);
-      }
+  await splitCSV(file, { mode, value, outputPattern });
+}
 
-      if (method === "manual") {
-        const { filePath } = await inquirer.prompt([
-          {
-            type: "input",
-            name: "filePath",
-            message: "📄 Relative path of the file to add:",
-          },
-        ]);
-        const resolved = path.resolve(process.cwd(), filePath);
-        fileList.push(resolved);
-      }
+async function handleFilter() {
+  const file = await selectFile("📂 Select the CSV file to filter:");
+  
+  const csvData = await readCSV(file);
+  const column = await promptForColumn("📊 Column to filter by:", csvData);
 
-      if (method === "done") {
-        keepGoing = false;
-      }
-    }
+  const { operator } = await inquirer.prompt([
+    {
+      type: "list",
+      name: "operator",
+      message: "🔍 Choose filter condition:",
+      choices: [
+        { name: "equals (exact match)", value: "equals" },
+        { name: "not equals", value: "not_equals" },
+        { name: "contains (substring)", value: "contains" },
+        { name: "not contains", value: "not_contains" },
+        { name: "starts with", value: "starts_with" },
+        { name: "ends with", value: "ends_with" },
+        { name: "greater than (numbers)", value: "greater_than" },
+        { name: "less than (numbers)", value: "less_than" },
+        { name: "is empty", value: "empty" },
+        { name: "is not empty", value: "not_empty" },
+      ],
+    },
+  ]);
 
-    const { output } = await inquirer.prompt([
-      {
-        type: "input",
-        name: "output",
-        message: "📁 Output file name:",
-        default: "merged.csv",
-      },
-    ]);
-
-    const outputPath = path.resolve(process.cwd(), output);
-    await merge(fileList, outputPath);
-  }
-
-  if (command === "diff" || command === "intersect") {
-    const file1 = await selectFile("📂 File 1 (source):");
-    const file2 = await selectFile("📂 File 2 (comparison):");
-
-    const { key, output } = await inquirer.prompt([
-      {
-        type: "input",
-        name: "key",
-        message: "🔑 Key to use (e.g.: email):",
-      },
-      {
-        type: "input",
-        name: "output",
-        message: "📁 Output file name:",
-        default: `${command}.csv`,
-      },
-    ]);
-
-    const outputPath = path.resolve(process.cwd(), output);
-    if (command === "diff") await diff(file1, file2, key, outputPath);
-    else await intersect(file1, file2, key, outputPath);
-  }
-
-  if (command === "duplicates") {
-    const file = await selectFile("📂 File to analyze:");
-
-    const { key, output } = await inquirer.prompt([
-      {
-        type: "input",
-        name: "key",
-        message: "🔑 Key to detect duplicates (e.g.: email):",
-      },
-      {
-        type: "input",
-        name: "output",
-        message: "📁 Output file name:",
-        default: "duplicates.csv",
-      },
-    ]);
-
-    const outputPath = path.resolve(process.cwd(), output);
-    await duplicates(file, key, outputPath);
-  }
-
-  if (command === "split") {
-    const file = await selectFile("📂 Select the CSV file to split:");
-    const { mode } = await inquirer.prompt([
-      {
-        type: "list",
-        name: "mode",
-        message: "Choose the split mode:",
-        choices: [
-          { name: "Number of sub-files", value: "fileCount" },
-          { name: "Maximum number of lines per file", value: "maxLines" },
-        ],
-      },
-    ]);
-
-    const { value } = await inquirer.prompt([
+  let value = "";
+  if (!["empty", "not_empty"].includes(operator)) {
+    const response = await inquirer.prompt([
       {
         type: "input",
         name: "value",
-        message:
-          mode === "fileCount"
-            ? "Enter the number of files to generate:"
-            : "Enter the maximum number of lines per file:",
-        validate: (input) =>
-          !isNaN(parseInt(input, 10)) && parseInt(input, 10) > 0
-            ? true
-            : "Enter a valid number greater than 0.",
+        message: "💭 Value to compare against:",
       },
     ]);
+    value = response.value;
+  }
 
-    const { outputPattern } = await inquirer.prompt([
-      {
-        type: "input",
-        name: "outputPattern",
-        message: "Base name for output files:",
-        default: "split_part",
-      },
-    ]);
+  const outputPath = await promptForOutput("filtered.csv");
+  await filter(file, column, operator, value, outputPath);
+}
 
-    await splitCSV(file, { mode, value, outputPattern });
+async function handleSort() {
+  const file = await selectFile("📂 Select the CSV file to sort:");
+  
+  const csvData = await readCSV(file);
+  const column = await promptForColumn("📊 Column to sort by:", csvData);
+
+  const { order } = await inquirer.prompt([
+    {
+      type: "list",
+      name: "order",
+      message: "📈 Sort order:",
+      choices: [
+        { name: "Ascending (A→Z, 1→9, oldest→newest)", value: "asc" },
+        { name: "Descending (Z→A, 9→1, newest→oldest)", value: "desc" },
+      ],
+    },
+  ]);
+
+  const { dataType } = await inquirer.prompt([
+    {
+      type: "list",
+      name: "dataType",
+      message: "🔢 Data type (auto-detect recommended):",
+      choices: [
+        { name: "Auto-detect", value: "auto" },
+        { name: "Text/String", value: "string" },
+        { name: "Number", value: "number" },
+        { name: "Date", value: "date" },
+      ],
+    },
+  ]);
+
+  const outputPath = await promptForOutput("sorted.csv");
+  await sort(file, column, order, dataType, outputPath);
+}
+
+async function main() {
+  console.log("Welcome to CSV Tool CLI!");
+  
+  const command = await selectOperation();
+
+  switch (command) {
+    case "merge":
+      await handleMerge();
+      break;
+    case "diff":
+    case "intersect":
+      await handleDiffOrIntersect(command);
+      break;
+    case "duplicates":
+      await handleDuplicates();
+      break;
+    case "split":
+      await handleSplit();
+      break;
+    case "filter":
+      await handleFilter();
+      break;
+    case "sort":
+      await handleSort();
+      break;
+    default:
+      console.error("❌ Unknown command");
   }
 }
 
-main();
+main().catch((error) => {
+  console.error("❌ Unexpected error:", error.message);
+  process.exit(1);
+});

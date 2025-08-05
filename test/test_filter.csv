@@ -1,0 +1,8 @@
+id,name,status,score,department
+1,Alice,active,85,Engineering
+2,Bob,inactive,92,Sales
+3,Charlie,active,78,Engineering
+4,Diana,active,88,Marketing
+5,Eve,inactive,95,Sales
+6,Frank,,67,Engineering
+7,Grace,active,91,Marketing

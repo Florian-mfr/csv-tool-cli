@@ -34,10 +34,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/votre-username/csv-tool-cli.git"
+    "url": "git+https://github.com/Florian-mfr/csv-tool-cli.git"
   },
   "bugs": {
-    "url": "https://github.com/votre-username/csv-tool-cli/issues"
+    "url": "https://github.com/Florian-mfr/csv-tool-cli/issues"
   },
-  "homepage": "https://github.com/votre-username/csv-tool-cli#readme"
+  "homepage": "https://github.com/Florian-mfr/csv-tool-cli#readme"
 }

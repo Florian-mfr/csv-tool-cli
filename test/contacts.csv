@@ -1,0 +1,10 @@
+email,name,phone,source
+john.doe@example.com,John Doe,555-0101,website
+jane.smith@example.com,Jane Smith,555-0102,referral
+john.doe@example.com,John D.,555-0103,linkedin
+bob.wilson@example.com,Bob Wilson,555-0104,website
+jane.smith@example.com,Jane S.,555-0105,facebook
+alice.brown@example.com,Alice Brown,555-0106,website
+john.doe@example.com,Johnny Doe,555-0107,twitter
+charlie.davis@example.com,Charlie Davis,555-0108,referral
+alice.brown@example.com,Ali Brown,555-0109,linkedin

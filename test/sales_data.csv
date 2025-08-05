@@ -1,0 +1,26 @@
+id,product,price,quantity,date,customer_email
+1,Laptop,999.99,1,2024-01-01,customer1@email.com
+2,Mouse,29.99,2,2024-01-01,customer2@email.com
+3,Keyboard,79.99,1,2024-01-02,customer3@email.com
+4,Monitor,299.99,1,2024-01-02,customer4@email.com
+5,Webcam,89.99,1,2024-01-03,customer5@email.com
+6,Headphones,149.99,1,2024-01-03,customer6@email.com
+7,Tablet,399.99,1,2024-01-04,customer7@email.com
+8,Phone,699.99,1,2024-01-04,customer8@email.com
+9,Charger,19.99,3,2024-01-05,customer9@email.com
+10,Speaker,199.99,1,2024-01-05,customer10@email.com
+11,Router,89.99,1,2024-01-06,customer11@email.com
+12,Cable,9.99,5,2024-01-06,customer12@email.com
+13,Printer,249.99,1,2024-01-07,customer13@email.com
+14,Scanner,179.99,1,2024-01-07,customer14@email.com
+15,External Drive,119.99,1,2024-01-08,customer15@email.com
+16,USB Hub,39.99,2,2024-01-08,customer16@email.com
+17,Dock Station,159.99,1,2024-01-09,customer17@email.com
+18,Power Bank,49.99,1,2024-01-09,customer18@email.com
+19,Wireless Mouse,45.99,1,2024-01-10,customer19@email.com
+20,Gaming Keyboard,129.99,1,2024-01-10,customer20@email.com
+21,Microphone,79.99,1,2024-01-11,customer21@email.com
+22,Webcam Pro,149.99,1,2024-01-11,customer22@email.com
+23,Laptop Stand,59.99,1,2024-01-12,customer23@email.com
+24,Monitor Arm,89.99,1,2024-01-12,customer24@email.com
+25,Desk Pad,29.99,2,2024-01-13,customer25@email.com

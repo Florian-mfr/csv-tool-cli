@@ -1,0 +1,4 @@
+order_id,customer_email,amount,status
+101,john@example.com,999.99,completed
+102,jane@example.com,149.99,pending
+103,bob@example.com,19.99,completed

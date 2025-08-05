@@ -50,6 +50,25 @@ The tool provides an interactive interface with:
 3. **Detect duplicates**: Find duplicate emails in a contact list
 4. **Split large file**: Separate `big-data.csv` into 10 smaller files
 
+## Testing
+
+The repository includes sample CSV files in the `test/` directory to help you get started:
+
+- **users1.csv & users2.csv** - Sample employee data for testing merge functionality
+- **all_users.csv & active_users.csv** - For testing diff/intersect operations
+- **contacts.csv** - Contains duplicate entries for testing duplicate detection
+- **sales_data.csv** - Large dataset for testing split functionality
+- **products.csv & orders.csv** - Files with different column structures for testing merge edge cases
+
+See `test/README.md` for detailed testing instructions and expected results.
+
+## Advanced Features
+
+- **Smart merge**: Automatically handles CSV files with different column structures
+- **Error handling**: Comprehensive validation and clear error messages
+- **Column validation**: Checks if specified keys exist in CSV files
+- **Permission checks**: Validates file access and write permissions
+
 ## Requirements
 
 - Node.js >= 16.0.0
